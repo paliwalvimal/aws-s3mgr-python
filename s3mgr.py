@@ -40,6 +40,7 @@ from botocore.exceptions import ClientError
 STD_STORAGE = "STANDARD"
 STD_IA_STORAGE = "STANDARD_IA"
 RRS_STORAGE = "REDUCED_REDUNDANCY"
+GLACIER = "GLACIER"
 
 PVT_BUCKET = "private"
 PUB_BUCKET = "public-read"
@@ -218,3 +219,35 @@ def list_contents(bucket, path="", include_subdir=True):
         "Files": contents,
         "Dirs": dirs
     }
+
+def restore_from_glacier(bucket, path="", days=2, restore_type="Standard"):
+    """
+    path = restore contents of specific folder
+    restore_type = Standard/Bulk/Expedited
+    """
+
+    try:
+        include_subdir = True
+        contents = list_contents(bucket, path, include_subdir)
+        keys = []
+        r_count = 0
+        for count in range(0, len(contents["Files"])):
+            if contents["Files"][count]["StorageClass"] == GLACIER:
+                r_count = r_count + 1
+                resp = s3.restore_object(
+                    Bucket=bucket,
+                    Key=contents["Files"][count]["Key"],
+                    RestoreRequest={
+                        'Days': days,
+                        'GlacierJobParameters': {
+                            'Tier': restore_type
+                        }
+                    }
+                )
+                print("Restoring ", contents["Files"][count]["Key"])
+
+        if r_count == 0:
+            print("No files are in glacier")
+    except ClientError as e:
+        return e.response["Error"]["Message"]
+   

@@ -217,9 +217,10 @@ def list_contents(bucket, path="", include_subdir=True):
         "Dirs": dirs
     }
 
-def restore_from_glacier(bucket, path="", days=2, restore_type="Standard"):
+def restore_from_glacier(bucket, path="", include_subdir=True, days=2, restore_type="Standard"):
     """
     path = restore contents of specific folder
+    include_subdir = True | False(will only include content of particular folder)
     restore_type = Standard/Bulk/Expedited
     """
 
@@ -264,50 +265,50 @@ def restore_from_glacier(bucket, path="", days=2, restore_type="Standard"):
     except ClientError as e:
         return e.response["Error"]["Message"]
    
-def send_to_glacier(bucket, path=""):
+def send_to_glacier(bucket, path="", include_subdir = True):
     """
     path = archive contents of specific folder
+    include_subdir = True | False(will only include content of particular folder)
     """
 
     s3res = boto3.resource("s3")
+    extra_args = {
+        "StorageClass": GLACIER
+    }
     try:
         if is_object(bucket, path):
             copy_src = {
                 "Bucket": bucket,
                 "Key": path
             }
-            extra_args = {
-                "StorageClass": GLACIER
-            }
+            
             s3obj = s3res.Object(bucket, path)
             s3obj.copy(copy_src, extra_args)
 
             print(path, "- Sent to glacier")
         else:
-            include_subdir = True
             contents = list_contents(bucket, path, include_subdir)
             keys = []
             r_count = 0
             for count in range(0, len(contents["Files"])):
-                if contents["Files"][count]["StorageClass"] == GLACIER:
+                if contents["Files"][count]["StorageClass"] != GLACIER:
                     r_count = r_count + 1
+                    key = contents["Files"][count]["Key"]
                     try:
-                        resp = s3.restore_object(
-                            Bucket=bucket,
-                            Key=contents["Files"][count]["Key"],
-                            RestoreRequest={
-                                'Days': days,
-                                'GlacierJobParameters': {
-                                    'Tier': restore_type
-                                }
-                            }
-                        )
-                        print(contents["Files"][count]["Key"], "- Object restoration command sent")
+                        copy_src = {
+                            "Bucket": bucket,
+                            "Key": key
+                        }
+                        
+                        s3obj = s3res.Object(bucket, key)
+                        s3obj.copy(copy_src, extra_args)
+
+                        print(key, "- Sent to glacier")
                     except ClientError as ce:
-                        print(contents["Files"][count]["Key"], "- ", ce.response["Error"]["Message"])
+                        print(key, "- ", ce.response["Error"]["Message"])
 
             if r_count == 0:
-                print("No files are in glacier")
+                print("Files already in glacier")
     except ClientError as e:
         return e.response["Error"]["Message"]
 

@@ -277,6 +277,7 @@ def send_to_glacier(bucket, path="", include_subdir=True):
     }
     try:
         if is_object(bucket, path):
+            print(key, "- Sending to glacier")
             copy_src = {
                 "Bucket": bucket,
                 "Key": path
@@ -295,6 +296,7 @@ def send_to_glacier(bucket, path="", include_subdir=True):
                     r_count = r_count + 1
                     key = contents["Files"][count]["Key"]
                     try:
+                        print(key, "- Sending to glacier")
                         copy_src = {
                             "Bucket": bucket,
                             "Key": key

@@ -265,7 +265,7 @@ def restore_from_glacier(bucket, path="", include_subdir=True, days=2, restore_t
     except ClientError as e:
         return e.response["Error"]["Message"]
    
-def send_to_glacier(bucket, path="", include_subdir = True):
+def send_to_glacier(bucket, path="", include_subdir=True):
     """
     path = archive contents of specific folder
     include_subdir = True | False(will only include content of particular folder)
@@ -308,7 +308,7 @@ def send_to_glacier(bucket, path="", include_subdir = True):
                         print(key, "- ", ce.response["Error"]["Message"])
 
             if r_count == 0:
-                print("Files already in glacier")
+                print("File(s) already in glacier")
     except ClientError as e:
         return e.response["Error"]["Message"]
 

@@ -277,7 +277,7 @@ def send_to_glacier(bucket, path="", include_subdir=True):
     }
     try:
         if is_object(bucket, path):
-            print(key, "- Sending to glacier")
+            print("Sending", key, "to glacier... ", end='')
             copy_src = {
                 "Bucket": bucket,
                 "Key": path
@@ -286,7 +286,7 @@ def send_to_glacier(bucket, path="", include_subdir=True):
             s3obj = s3res.Object(bucket, path)
             s3obj.copy(copy_src, extra_args)
 
-            print(path, "- Sent to glacier")
+            print("Sent")
         else:
             contents = list_contents(bucket, path, include_subdir)
             keys = []
@@ -296,7 +296,7 @@ def send_to_glacier(bucket, path="", include_subdir=True):
                     r_count = r_count + 1
                     key = contents["Files"][count]["Key"]
                     try:
-                        print(key, "- Sending to glacier")
+                        print("Sending", key, "to glacier... ", end='')
                         copy_src = {
                             "Bucket": bucket,
                             "Key": key
@@ -305,7 +305,7 @@ def send_to_glacier(bucket, path="", include_subdir=True):
                         s3obj = s3res.Object(bucket, key)
                         s3obj.copy(copy_src, extra_args)
 
-                        print(key, "- Sent to glacier")
+                        print("Sent")
                     except ClientError as ce:
                         print(key, "- ", ce.response["Error"]["Message"])
 

@@ -8,7 +8,7 @@
       ####
 
 AUTHOR = Vimal Paliwal <paliwalvimal1993@gmail.com>
-A simple yet useful s3 library. Feel free to make changes according to your requirement.
+A simple yet useful s3 library. Feel free to make changes as per your requirement.
 
 MIT License
 
@@ -42,9 +42,9 @@ STD_IA_STORAGE = "STANDARD_IA"
 RRS_STORAGE = "REDUCED_REDUNDANCY"
 GLACIER = "GLACIER"
 
-PVT_BUCKET = "private"
-PUB_BUCKET = "public-read"
-PUB_RW_BUCKET = "public-read-write"
+PVT_ACL = "private"
+PUB_ACL = "public-read"
+PUB_RW_ACL = "public-read-write"
 
 REGION = {
     "N_VIRGINIA": "us-east-1",
@@ -66,11 +66,10 @@ REGION = {
 
 s3 = boto3.client("s3")
 
-
-def create_bucket(bucket, region, acl=PVT_BUCKET):
+def create_bucket(bucket, region, acl=PVT_ACL):
     """
     region: refer to REGION variable
-    acl: "PVT_BUCKET"|"PUB_BUCKET"|"PUB_RW_BUCKET"
+    acl: PVT_ACL | PUB_ACL | PUB_RW_ACL
     """
 
     try:
@@ -89,7 +88,7 @@ def create_bucket(bucket, region, acl=PVT_BUCKET):
 
 def delete_bucket(bucket, force=False):
     """
-    force = True(deletes everything inside the bucket before deleting the bucket itself)|False
+    force = True(deletes everything inside the bucket before deleting the bucket itself) | False
     """
 
     try:
@@ -124,7 +123,7 @@ def create_folder(bucket, folder, is_private=True):
         s3.put_object(
             Bucket=bucket,
             Key=folder + ("/" if folder[-1:] != "/" else ""),
-            ACL="private" if is_private else "public-read",
+            ACL=PVT_ACL if is_private else PUB_ACL,
             ContentLength=0
         )
         return "0"
@@ -132,31 +131,29 @@ def create_folder(bucket, folder, is_private=True):
         return e.response["Error"]["Code"]
 
 
-def upload_file(bucket, key, file, content_type, storage, encrypt="AES", kms_id="", is_private=True):
+def upload_file(bucket, key, file, content_type, storage, encrypt="", kms_id="", is_private=True):
     """
     file = full path of file to be uploaded
     content_type = supported MIME type
-    encrypt = "AES"|"KMS"
+    encrypt = "AES" | "KMS"
     kms_id = kms key id
     """
 
-    if encrypt == "AES":
-        extra_args = {
-            "ACL": "private" if is_private else "public-read",
-            "ContentType": content_type,
-            "StorageClass": storage,
-            "ServerSideEncryption": "AES256"
-        }
-    else:
-        extra_args = {
-            "ACL": "private" if is_private else "public-read",
-            "ContentType": content_type,
-            "StorageClass": storage,
-            "ServerSideEncryption": "aws:kms",
-            "SSEKMSKeyId": kms_id,
-        }
-
     try:
+        extra_args = {
+            "ACL": PVT_ACL if is_private else PUB_ACL,
+            "ContentType": content_type,
+            "StorageClass": storage
+        }
+        
+        if encrypt == "AES":
+            extra_args["ServerSideEncryption"] = "AES256"
+        elif encrypt == "KMS" and kms_id != "":
+            extra_args["ServerSideEncryption"] = "aws:kms"
+            extra_args["SSEKMSKeyId"] = kms_id
+        else:
+            raise Exception("kms_id is required for KMS encryption")
+
         s3.upload_file(
             file, bucket, key,
             ExtraArgs=extra_args
@@ -227,27 +224,106 @@ def restore_from_glacier(bucket, path="", days=2, restore_type="Standard"):
     """
 
     try:
-        include_subdir = True
-        contents = list_contents(bucket, path, include_subdir)
-        keys = []
-        r_count = 0
-        for count in range(0, len(contents["Files"])):
-            if contents["Files"][count]["StorageClass"] == GLACIER:
-                r_count = r_count + 1
-                resp = s3.restore_object(
+        if is_object(bucket, path):
+            resp = s3.restore_object(
                     Bucket=bucket,
-                    Key=contents["Files"][count]["Key"],
+                    Key=path,
                     RestoreRequest={
                         'Days': days,
                         'GlacierJobParameters': {
                             'Tier': restore_type
                         }
                     }
-                )
-                print("Restoring ", contents["Files"][count]["Key"])
+            )
+            print(path, "- Object restoration command sent")
+        else:
+            include_subdir = True
+            contents = list_contents(bucket, path, include_subdir)
+            keys = []
+            r_count = 0
+            for count in range(0, len(contents["Files"])):
+                if contents["Files"][count]["StorageClass"] == GLACIER:
+                    r_count = r_count + 1
+                    try:
+                        resp = s3.restore_object(
+                            Bucket=bucket,
+                            Key=contents["Files"][count]["Key"],
+                            RestoreRequest={
+                                'Days': days,
+                                'GlacierJobParameters': {
+                                    'Tier': restore_type
+                                }
+                            }
+                        )
+                        print(contents["Files"][count]["Key"], "- Object restoration command sent")
+                    except ClientError as ce:
+                        print(contents["Files"][count]["Key"], "- ", ce.response["Error"]["Message"])
 
-        if r_count == 0:
-            print("No files are in glacier")
+            if r_count == 0:
+                print("No files are in glacier")
     except ClientError as e:
         return e.response["Error"]["Message"]
    
+def send_to_glacier(bucket, path=""):
+    """
+    path = archive contents of specific folder
+    """
+
+    s3res = boto3.resource("s3")
+    try:
+        if is_object(bucket, path):
+            copy_src = {
+                "Bucket": bucket,
+                "Key": path
+            }
+            extra_args = {
+                "StorageClass": GLACIER
+            }
+            s3obj = s3res.Object(bucket, path)
+            s3obj.copy(copy_src, extra_args)
+
+            print(path, "- Sent to glacier")
+        else:
+            include_subdir = True
+            contents = list_contents(bucket, path, include_subdir)
+            keys = []
+            r_count = 0
+            for count in range(0, len(contents["Files"])):
+                if contents["Files"][count]["StorageClass"] == GLACIER:
+                    r_count = r_count + 1
+                    try:
+                        resp = s3.restore_object(
+                            Bucket=bucket,
+                            Key=contents["Files"][count]["Key"],
+                            RestoreRequest={
+                                'Days': days,
+                                'GlacierJobParameters': {
+                                    'Tier': restore_type
+                                }
+                            }
+                        )
+                        print(contents["Files"][count]["Key"], "- Object restoration command sent")
+                    except ClientError as ce:
+                        print(contents["Files"][count]["Key"], "- ", ce.response["Error"]["Message"])
+
+            if r_count == 0:
+                print("No files are in glacier")
+    except ClientError as e:
+        return e.response["Error"]["Message"]
+
+def is_object(bucket, path=""):
+    try:
+        resp = s3.get_object(
+            Bucket=bucket,
+            Key=path
+        )
+        # res = boto3.resource("s3")
+        # obj_metadata = res.Object(bucket, path)
+        # print(obj_metadata.version_id)
+
+        return True
+    except ClientError as e:
+        return False
+
+def download(bucket, src="", dest=""):
+    return 0

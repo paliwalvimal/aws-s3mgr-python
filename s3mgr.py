@@ -277,7 +277,7 @@ def send_to_glacier(bucket, path="", include_subdir=True):
     }
     try:
         if is_object(bucket, path):
-            print("Sending", key, "to glacier... ", end='')
+            print(key, "- Sending to glacier")
             copy_src = {
                 "Bucket": bucket,
                 "Key": path
@@ -286,7 +286,7 @@ def send_to_glacier(bucket, path="", include_subdir=True):
             s3obj = s3res.Object(bucket, path)
             s3obj.copy(copy_src, extra_args)
 
-            print("Sent")
+            print(key, "- Sent to glacier")
         else:
             contents = list_contents(bucket, path, include_subdir)
             keys = []
@@ -296,7 +296,7 @@ def send_to_glacier(bucket, path="", include_subdir=True):
                     r_count = r_count + 1
                     key = contents["Files"][count]["Key"]
                     try:
-                        print("Sending", key, "to glacier... ", end='')
+                        print(key, "- Sending to glacier")
                         copy_src = {
                             "Bucket": bucket,
                             "Key": key
@@ -305,7 +305,7 @@ def send_to_glacier(bucket, path="", include_subdir=True):
                         s3obj = s3res.Object(bucket, key)
                         s3obj.copy(copy_src, extra_args)
 
-                        print("Sent")
+                        print(key, "- Sent to glacier")
                     except ClientError as ce:
                         print(key, "- ", ce.response["Error"]["Message"])
 
@@ -316,15 +316,18 @@ def send_to_glacier(bucket, path="", include_subdir=True):
 
 def is_object(bucket, path=""):
     try:
-        resp = s3.get_object(
-            Bucket=bucket,
-            Key=path
-        )
-        # res = boto3.resource("s3")
-        # obj_metadata = res.Object(bucket, path)
-        # print(obj_metadata.version_id)
+        if path == "":
+            return False
+        else:
+            resp = s3.get_object(
+                Bucket=bucket,
+                Key=path
+            )
+            # res = boto3.resource("s3")
+            # obj_metadata = res.Object(bucket, path)
+            # print(obj_metadata.version_id)
 
-        return True
+            return True
     except ClientError as e:
         return False
 

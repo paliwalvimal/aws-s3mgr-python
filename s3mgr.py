@@ -277,7 +277,7 @@ def send_to_glacier(bucket, path="", include_subdir=True):
     }
     try:
         if is_object(bucket, path):
-            print(key, "- Sending to glacier")
+            print(path, "- Sending to glacier")
             copy_src = {
                 "Bucket": bucket,
                 "Key": path
@@ -286,7 +286,7 @@ def send_to_glacier(bucket, path="", include_subdir=True):
             s3obj = s3res.Object(bucket, path)
             s3obj.copy(copy_src, extra_args)
 
-            print(key, "- Sent to glacier")
+            print(path, "- Sent to glacier")
         else:
             contents = list_contents(bucket, path, include_subdir)
             keys = []

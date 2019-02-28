@@ -263,7 +263,7 @@ class s3mgr:
                     )
                     print(path, "-Object restoration command sent")
                 except ClientError as ce:
-                    print(contents["Files"][count]["Key"], "- ", ce.response["Error"]["Message"])
+                    print(path, "-", ce.response["Error"]["Message"])
             else:
                 include_subdir = True
                 contents = self.list_contents(bucket, path, include_subdir)
@@ -283,9 +283,9 @@ class s3mgr:
                                     }
                                 }
                             )
-                            print(contents["Files"][count]["Key"], "- Object restoration command sent")
+                            print(contents["Files"][count]["Key"], "-Object restoration command sent")
                         except ClientError as ce:
-                            print(contents["Files"][count]["Key"], "- ", ce.response["Error"]["Message"])
+                            print(contents["Files"][count]["Key"], "-", ce.response["Error"]["Message"])
 
                 if r_count == 0:
                     print("No files are in glacier")

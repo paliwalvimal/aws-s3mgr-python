@@ -221,7 +221,6 @@ class s3mgr:
                 break
         
         response["KeyCount"] = keyCount
-        print(response)
 
         contents = []
         dirs = []
@@ -237,10 +236,10 @@ class s3mgr:
                     dirs.append(response["Contents"][i]["Key"])
                     dirs[len(dirs)-1] = dirs[len(dirs)-1][0:dirs[len(dirs)-1].find("/", dirs[len(dirs)-1].find("/") + (-1 if path == "" else 1)) + 1]
 
-        # return {
-        #     "Files": contents,
-        #     "Dirs": dirs
-        # }
+        return {
+            "Files": contents,
+            "Dirs": dirs
+        }
 
     def restore_from_glacier(self, bucket, path="", include_subdir=True, days=2, restore_type="Standard"):
         """

@@ -332,12 +332,15 @@ class s3mgr:
                     Bucket=bucket,
                     Key=path
                 )
-                # res = boto3.resource("s3")
-                # obj_metadata = res.Object(bucket, path)
-                # print(obj_metadata.version_id)
+                # s3res = self.session.resource("s3")
+                # obj_metadata = s3res.Object(bucket, path)
+                # print(obj_metadata)
 
                 return True
         except ClientError as e:
+            if e.response["Error"]["Code"] == "InvalidObjectState":
+                return True
+            
             return False
 
     def download(self, bucket, src="", dest=""):

@@ -202,10 +202,26 @@ class s3mgr:
         """
 
         path = path + ("/" if path != "" and path[-1:] != "/" else "")
-        response = self.s3.list_objects_v2(
-            Bucket=bucket,
-            Prefix=path
-        )
+        args = {
+            "Bucket": bucket,
+            "Prefix": path
+        }
+        response = {}
+        response["Contents"] = []
+        keyCount = 0
+        while True:
+            tmp = self.s3.list_objects_v2(**args)
+            keyCount = keyCount + tmp["KeyCount"]
+            for c in range(0, tmp["KeyCount"]):
+                response["Contents"].append(tmp["Contents"][c])
+
+            try:
+                args['ContinuationToken'] = tmp['NextContinuationToken']
+            except KeyError:
+                break
+        
+        response["KeyCount"] = keyCount
+        print(response)
 
         contents = []
         dirs = []
@@ -221,10 +237,10 @@ class s3mgr:
                     dirs.append(response["Contents"][i]["Key"])
                     dirs[len(dirs)-1] = dirs[len(dirs)-1][0:dirs[len(dirs)-1].find("/", dirs[len(dirs)-1].find("/") + (-1 if path == "" else 1)) + 1]
 
-        return {
-            "Files": contents,
-            "Dirs": dirs
-        }
+        # return {
+        #     "Files": contents,
+        #     "Dirs": dirs
+        # }
 
     def restore_from_glacier(self, bucket, path="", include_subdir=True, days=2, restore_type="Standard"):
         """
@@ -246,7 +262,7 @@ class s3mgr:
                             }
                         }
                     )
-                    print(path, "- Object restoration command sent")
+                    print(path, "-Object restoration command sent")
                 except ClientError as ce:
                     print(contents["Files"][count]["Key"], "- ", ce.response["Error"]["Message"])
             else:

@@ -235,7 +235,8 @@ class s3mgr:
 
         try:
             if self.is_object(bucket, path):
-                resp = self.s3.restore_object(
+                try:
+                    resp = self.s3.restore_object(
                         Bucket=bucket,
                         Key=path,
                         RestoreRequest={
@@ -244,8 +245,10 @@ class s3mgr:
                                 'Tier': restore_type
                             }
                         }
-                )
-                print(path, "- Object restoration command sent")
+                    )
+                    print(path, "- Object restoration command sent")
+                except ClientError as ce:
+                    print(contents["Files"][count]["Key"], "- ", ce.response["Error"]["Message"])
             else:
                 include_subdir = True
                 contents = self.list_contents(bucket, path, include_subdir)

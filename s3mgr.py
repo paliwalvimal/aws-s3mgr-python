@@ -360,6 +360,4 @@ class s3mgr:
                 return True
             
             return False
-
-    def download(self, bucket, src="", dest=""):
-        return 0
+           
